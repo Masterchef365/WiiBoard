@@ -1,0 +1,12 @@
+[package]
+name = "wiiboard"
+version = "0.1.0"
+authors = ["Masterchef365 <duncan.freeman1@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+wiiuse-sys = "0.3"
+thiserror = "1"
+
+[dev-dependencies]
+anyhow = "1"

@@ -5,8 +5,9 @@ authors = ["Masterchef365 <duncan.freeman1@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-wiiuse-sys = "0.3"
+#wiiuse-sys = "0.3"
 thiserror = "1"
+wiiuse-sys = { git = "https://github.com/Masterchef365/wiiuse-sys.git" }
 
 [dev-dependencies]
 anyhow = "1"

@@ -1,5 +1,8 @@
 use thiserror::Error;
 use wiiuse_sys::*;
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
+use std::thread;
 
 /// An error produced during runtime
 #[derive(Error, Debug)]
@@ -12,6 +15,8 @@ pub enum WiiBoardError {
     ConnectionFailed,
     #[error("Connection to the WiiBoard dropped")]
     ConnectionDropped,
+    #[error("Mutex poisoned")]
+    MutexPoisoned,
 }
 
 type Result<T> = std::result::Result<T, WiiBoardError>;
@@ -86,6 +91,39 @@ impl From<wii_board_t> for WiiBoardData {
             top_right: wb.tr,
             bottom_left: wb.bl,
             bottom_right: wb.br,
+        }
+    }
+}
+
+pub struct WiiBoardRealtime {
+    latest: Arc<Mutex<Option<WiiBoardData>>>,
+}
+
+impl WiiBoardRealtime {
+    pub fn new(timeout_s: u32, interval_ms: u64) -> Self {
+        let latest = Arc::new(Mutex::new(None));
+        {
+            let latest = latest.clone();
+            std::thread::spawn(move || {
+                let wiiboard = WiiBoard::new(timeout_s).unwrap();
+                loop {
+                    match wiiboard.poll().expect("Failed to poll wiiboard") {
+                        WiiBoardPoll::Empty => thread::sleep(Duration::from_millis(interval_ms)),
+                        WiiBoardPoll::Other => (),
+                        WiiBoardPoll::Balance(b) => *latest.lock().expect("Main thread shut down") = Some(b),
+                    }
+                }
+            });
+        }
+        Self {
+            latest
+        }
+    }
+
+    pub fn poll(&self) -> Result<Option<WiiBoardData>> {
+        match self.latest.lock() {
+            Err(_) => Err(WiiBoardError::MutexPoisoned),
+            Ok(gaurd) => Ok(*gaurd),
         }
     }
 }

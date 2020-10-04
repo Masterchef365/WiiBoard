@@ -1,10 +1,10 @@
 use anyhow::Result;
-use wiiboard::WiiBoard;
+use wiiboard::{WiiBoard, WiiBoardPoll};
 
 fn main() -> Result<()> {
     let board = WiiBoard::new(10)?;
     loop {
-        if let Some(data) = board.poll()? {
+        if let WiiBoardPoll::Balance(data) = board.poll()? {
             dbg!(data);
         }
     }

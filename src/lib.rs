@@ -30,6 +30,12 @@ pub struct WiiBoardData {
     pub bottom_right: f32,
 }
 
+pub enum WiiBoardPoll {
+    Balance(WiiBoardData),
+    Other,
+    Empty,
+}
+
 impl WiiBoard {
     /// Create a new WiiBoard, waiting `timeout_seconds` for a board to begin syncing.
     pub fn new(timeout_seconds: u32) -> Result<Self> {
@@ -51,21 +57,24 @@ impl WiiBoard {
     }
 
     /// Poll for events. Returns `Ok(None)` if there were no events, but the runtime is still ok.
-    pub fn poll(&self) -> Result<Option<WiiBoardData>> {
+    pub fn poll(&self) -> Result<WiiBoardPoll> {
         let wiimote = unsafe { (*self.wiimotes).as_ref().unwrap() };
         if !WIIMOTE_IS_CONNECTED(wiimote) {
             return Err(WiiBoardError::ConnectionDropped);
         }
 
         let poll = unsafe { wiiuse_poll(self.wiimotes, 1) };
-        if poll != 0 && wiimote.event == WIIUSE_EVENT_TYPE_WIIUSE_EVENT {
-            if wiimote.exp.type_ != EXP_WII_BOARD as i32 {
-                return Err(WiiBoardError::NotABoard);
-            }
-            let wii_board = unsafe { wiimote.exp.__bindgen_anon_1.wb };
-            Ok(Some(wii_board.into()))
-        } else {
-            Ok(None)
+        match poll {
+            0 => Ok(WiiBoardPoll::Empty),
+            _ if wiimote.event == WIIUSE_EVENT_TYPE_WIIUSE_EVENT => {
+                if wiimote.exp.type_ != EXP_WII_BOARD as i32 {
+                    Err(WiiBoardError::NotABoard.into())
+                } else {
+                    let wii_board = unsafe { wiimote.exp.__bindgen_anon_1.wb };
+                    Ok(WiiBoardPoll::Balance(wii_board.into()))
+                }
+            },
+            _ => Ok(WiiBoardPoll::Other)
         }
     }
 }
